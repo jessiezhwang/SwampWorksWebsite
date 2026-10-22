@@ -7,8 +7,13 @@ class Project(models.Model):
         ('completed', 'Completed'),
     ]
 
-    image = models.ImageField(upload_to='projects/')
+    title = models.CharField(max_length=200, default='')
     description = models.TextField()
+    technologies = models.CharField(
+        max_length=300,
+        blank=True,
+        help_text='Comma-separated, e.g. Python, Pygame, Arduino',
+    )
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='ongoing')
     is_approved = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -17,7 +22,33 @@ class Project(models.Model):
         ordering = ['-created_at']
 
     def __str__(self):
-        return self.description[:50]
+        return self.title or self.description[:50]
+
+    def technology_list(self):
+        return [tech.strip() for tech in self.technologies.split(',') if tech.strip()]
+
+
+class ProjectMember(models.Model):
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='members')
+    name = models.CharField(max_length=100)
+    role = models.CharField(max_length=100)
+
+    class Meta:
+        ordering = ['id']
+
+    def __str__(self):
+        return f"{self.name} ({self.role})"
+
+
+class ProjectImage(models.Model):
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='images')
+    image = models.ImageField(upload_to='projects/')
+
+    class Meta:
+        ordering = ['id']
+
+    def __str__(self):
+        return f"Image for {self.project}"
 
 
 class Idea(models.Model):

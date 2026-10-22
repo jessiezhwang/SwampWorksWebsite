@@ -2,12 +2,13 @@ import calendar
 from datetime import date
 
 from django.conf import settings
+from django.db import transaction
 from django.core.mail import send_mail
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 
-from .forms import ProjectForm, IdeaForm, MeetingForm, ContactForm
-from .models import Project, Idea, ClubMeeting, Contact
+from .forms import ProjectForm, ProjectMemberFormSet, ProjectEditForm, EditMemberFormSet, IdeaForm, MeetingForm, ContactForm
+from .models import Project, ProjectImage, Idea, ClubMeeting, Contact
 
 
 def _is_admin(request):
@@ -23,6 +24,7 @@ def _notify_admin_of_new_project(request, project):
         subject='New project submitted for approval',
         message=(
             f"A new project was submitted and is waiting for approval.\n\n"
+            f"Project: {project.title}\n\n"
             f"Description: {project.description}\n\n"
             f"Review and approve it here: {review_url}"
         ),
@@ -137,19 +139,30 @@ def projects(request):
     if request.method == 'POST':
         # anyone - logged in or not - can submit a project, but it starts unapproved
         form = ProjectForm(request.POST, request.FILES)
-        if form.is_valid():
-            project = form.save(commit=False)
-            project.is_approved = False
-            project.save()
+        member_formset = ProjectMemberFormSet(request.POST, instance=Project())
+        if form.is_valid() and member_formset.is_valid():
+            with transaction.atomic():
+                project = form.save(commit=False)
+                project.is_approved = False
+                project.save()
+                member_formset.instance = project
+                member_formset.save()
+                for image in form.cleaned_data['images']:
+                    ProjectImage.objects.create(project=project, image=image)
             _notify_admin_of_new_project(request, project)
             return redirect(reverse('landing_page:projects') + '?submitted=1')
     else:
         form = ProjectForm()
+        member_formset = ProjectMemberFormSet(instance=Project())
         submitted = request.GET.get('submitted') == '1'
 
+    approved = Project.objects.filter(is_approved=True).prefetch_related('images', 'members')
+
     return render(request, 'landing_page/projects.html', {
-        'projects': Project.objects.filter(is_approved=True),
+        'ongoing_projects': approved.filter(status='ongoing'),
+        'completed_projects': approved.filter(status='completed'),
         'form': form,
+        'member_formset': member_formset,
         'submitted': submitted,
     })
 
@@ -166,6 +179,38 @@ def update_project_status(request, project_id):
             project.save()
 
     return redirect('landing_page:projects')
+
+
+def edit_project(request, project_id):
+    if not _is_admin(request):
+        return redirect('landing_page:projects')
+
+    project = get_object_or_404(Project, pk=project_id)
+    back_url = reverse('landing_page:projects') if project.is_approved else reverse('dashboard:admin')
+
+    if request.method == 'POST':
+        form = ProjectEditForm(request.POST, request.FILES, instance=project)
+        member_formset = EditMemberFormSet(request.POST, instance=project)
+        if form.is_valid() and member_formset.is_valid():
+            with transaction.atomic():
+                form.save()
+                member_formset.save()
+                for image in form.cleaned_data['delete_images']:
+                    image.image.delete(save=False)
+                    image.delete()
+                for image in form.cleaned_data['new_images'] or []:
+                    ProjectImage.objects.create(project=project, image=image)
+            return redirect(back_url)
+    else:
+        form = ProjectEditForm(instance=project)
+        member_formset = EditMemberFormSet(instance=project)
+
+    return render(request, 'landing_page/edit_project.html', {
+        'project': project,
+        'form': form,
+        'member_formset': member_formset,
+        'back_url': back_url,
+    })
 
 
 def approve_project(request, project_id):
