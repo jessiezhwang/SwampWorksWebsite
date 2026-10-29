@@ -70,7 +70,7 @@
             hideTimer = setTimeout(function () { dropdown.hide(); }, 150);
         });
 
-        // On desktop the "Projects" label itself goes to the projects page; on mobile it opens the menu.
+        //on desktop clicking Projects goes to the projects page
         toggle.addEventListener('click', function (event) {
             if (!isDesktop()) return;
             event.preventDefault();

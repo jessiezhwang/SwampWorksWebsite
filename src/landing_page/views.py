@@ -175,7 +175,7 @@ def project_detail(request, project_id):
         pk=project_id,
     )
 
-    # pending projects are only visible to admins
+    #pending projects can only be viewed by admins
     if not project.is_approved and not _is_admin(request):
         raise Http404
 
@@ -244,12 +244,12 @@ def approve_project(request, project_id):
         project = get_object_or_404(Project, pk=project_id)
         now = timezone.now()
         if _is_staff(request):
-            # staff make the final decision: this is what publishes the project
+            #staff approval is the final one, it publishes the project
             project.staff_approved_by = request.user
             project.staff_approved_at = now
             project.is_approved = True
         elif not project.admin_approved_by:
-            # an admin's approval is a sign-off that staff can see; it does not publish
+            #admin approval only signs off for staff to see, it does not publish
             project.admin_approved_by = request.user
             project.admin_approved_at = now
         project.save()
@@ -258,7 +258,7 @@ def approve_project(request, project_id):
 
 
 def reject_project(request, project_id):
-    # only staff make the final decision, so only staff can reject
+    #only staff can reject since they make the final decision
     if not _is_staff(request):
         return redirect('dashboard:admin')
 

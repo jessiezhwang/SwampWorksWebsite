@@ -1,5 +1,4 @@
-/* Figma colors and font applied to Bootstrap through its own theme variables.
-   All layout and components come from Bootstrap classes in the templates. */
+/* figma colors and font set through bootstrap theme variables */
 :root,
 [data-bs-theme="light"] {
     --bs-font-sans-serif: "Manrope", system-ui, sans-serif;

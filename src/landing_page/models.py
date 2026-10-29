@@ -16,7 +16,7 @@ class Project(models.Model):
         help_text='Comma-separated, e.g. Python, Pygame, Arduino',
     )
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='ongoing')
-    # is_approved means published; only staff can set it (final decision)
+    #is_approved means the project is published, only staff can set it
     is_approved = models.BooleanField(default=False)
     admin_approved_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True,
