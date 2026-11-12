@@ -9,8 +9,8 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.utils import timezone
 
-from .forms import ProjectForm, ProjectMemberFormSet, ProjectEditForm, EditMemberFormSet, IdeaForm, MeetingForm, ContactForm
-from .models import Project, ProjectImage, Idea, ClubMeeting, Contact
+from .forms import ProjectForm, ProjectMemberFormSet, ProjectEditForm, EditMemberFormSet, ProjectTaskForm, IdeaForm, MeetingForm, ContactForm
+from .models import Project, ProjectImage, ProjectTask, Idea, ClubMeeting, Contact
 
 
 def _is_admin(request):
@@ -179,7 +179,77 @@ def project_detail(request, project_id):
     if not project.is_approved and not _is_admin(request):
         raise Http404
 
-    return render(request, 'landing_page/project_detail.html', {'project': project})
+    context = {'project': project}
+
+    #the kanban board is only for admins and staff
+    if _is_admin(request):
+        tasks = list(project.tasks.all())
+        context['columns'] = [
+            (value, label, [task for task in tasks if task.status == value])
+            for value, label in ProjectTask.STATUS_CHOICES
+        ]
+        context['task_form'] = ProjectTaskForm()
+
+    return render(request, 'landing_page/project_detail.html', context)
+
+
+def _board(project_id):
+    return redirect(reverse('landing_page:project_detail', args=[project_id]) + '#kanban')
+
+
+def task_add(request, project_id):
+    project = get_object_or_404(Project, pk=project_id)
+    if not _is_admin(request):
+        return redirect('landing_page:project_detail', project_id=project.pk)
+
+    if request.method == 'POST':
+        form = ProjectTaskForm(request.POST)
+        if form.is_valid():
+            task = form.save(commit=False)
+            task.project = project
+            task.save()
+
+    return _board(project.pk)
+
+
+def task_update(request, task_id):
+    task = get_object_or_404(ProjectTask, pk=task_id)
+    if not _is_admin(request):
+        return redirect('landing_page:project_detail', project_id=task.project_id)
+
+    if request.method == 'POST':
+        form = ProjectTaskForm(request.POST, instance=task)
+        if form.is_valid():
+            form.save()
+
+    return _board(task.project_id)
+
+
+def task_move(request, task_id):
+    task = get_object_or_404(ProjectTask, pk=task_id)
+    if not _is_admin(request):
+        return redirect('landing_page:project_detail', project_id=task.project_id)
+
+    if request.method == 'POST':
+        order = [value for value, label in ProjectTask.STATUS_CHOICES]
+        step = {'left': -1, 'right': 1}.get(request.POST.get('direction'), 0)
+        new_index = order.index(task.status) + step
+        if 0 <= new_index < len(order):
+            task.status = order[new_index]
+            task.save()
+
+    return _board(task.project_id)
+
+
+def task_delete(request, task_id):
+    task = get_object_or_404(ProjectTask, pk=task_id)
+    if not _is_admin(request):
+        return redirect('landing_page:project_detail', project_id=task.project_id)
+
+    if request.method == 'POST':
+        task.delete()
+
+    return _board(task.project_id)
 
 
 def update_project_status(request, project_id):

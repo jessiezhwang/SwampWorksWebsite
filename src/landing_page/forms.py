@@ -1,6 +1,6 @@
 from django import forms
 from django.forms import inlineformset_factory
-from .models import Project, ProjectImage, ProjectMember, Idea, ClubMeeting, Contact
+from .models import Project, ProjectImage, ProjectMember, ProjectTask, Idea, ClubMeeting, Contact
 
 
 class MultipleFileInput(forms.ClearableFileInput):
@@ -94,6 +94,17 @@ EditMemberFormSet = inlineformset_factory(
         'role': forms.TextInput(attrs={'placeholder': 'Role'}),
     },
 )
+
+
+class ProjectTaskForm(forms.ModelForm):
+    class Meta:
+        model = ProjectTask
+        fields = ['title', 'description', 'assignee', 'status']
+        widgets = {
+            'title': forms.TextInput(attrs={'placeholder': 'Task title'}),
+            'description': forms.Textarea(attrs={'rows': 2, 'placeholder': 'Details (optional)'}),
+            'assignee': forms.TextInput(attrs={'placeholder': 'Assigned to (optional)'}),
+        }
 
 
 class IdeaForm(forms.ModelForm):

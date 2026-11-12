@@ -63,6 +63,27 @@ class ProjectImage(models.Model):
         return f"Image for {self.project}"
 
 
+class ProjectTask(models.Model):
+    STATUS_CHOICES = [
+        ('todo', 'To Do'),
+        ('doing', 'In Progress'),
+        ('done', 'Done'),
+    ]
+
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='tasks')
+    title = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    assignee = models.CharField(max_length=100, blank=True)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='todo')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['id']
+
+    def __str__(self):
+        return self.title
+
+
 class Idea(models.Model):
     description = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
